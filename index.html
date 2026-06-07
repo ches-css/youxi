@@ -156,6 +156,7 @@
                 this.side = side;
                 this.health = 100;
                 this.maxHealth = 100;
+                this.score = 0;
                 this.width = 40;
                 this.height = 60;
                 this.velocity = { x: 0, y: 0 };
@@ -245,14 +246,24 @@
                     attackX + attackRange > opponent.x &&
                     this.y < opponent.y + opponent.height &&
                     this.y + this.height > opponent.y) {
-                    opponent.takeDamage(15);
+                    opponent.takeDamage(15, this.score);
+                    this.score += 10;
                 }
             }
             
-            takeDamage(amount) {
+            takeDamage(amount, opponentScore) {
+                let damageReduction = 0.5;
+                
                 if (this.isDefending) {
-                    amount = Math.floor(amount * 0.5);
+                    damageReduction = 0.5;
                 }
+                
+                const scoreDiff = this.score - opponentScore;
+                if (scoreDiff <= -20) {
+                    damageReduction = 0.25;
+                }
+                
+                amount = Math.floor(amount * damageReduction);
                 this.health -= amount;
                 this.damageFlash = 10;
                 if (this.health < 0) this.health = 0;
@@ -389,6 +400,9 @@
                 
                 this.mechs.forEach(mech => mech.draw(this.ctx));
                 
+                this.drawSadFace(this.mechs[0], this.mechs[1]);
+                this.drawSadFace(this.mechs[1], this.mechs[0]);
+                
                 this.drawHealthBars();
             }
             
@@ -428,7 +442,7 @@
                 ctx.strokeRect(20, 20, barWidth, barHeight);
                 ctx.fillStyle = '#ffffff';
                 ctx.font = '10px "Press Start 2P"';
-                ctx.fillText(this.mechs[0].name, 25, 15);
+                ctx.fillText(this.mechs[0].name + ' ' + this.mechs[0].score, 25, 15);
                 
                 ctx.fillStyle = '#2980b9';
                 ctx.fillRect(canvas.width - barWidth - 20, 20, barWidth, barHeight);
@@ -438,8 +452,38 @@
                 ctx.strokeStyle = '#f4d03f';
                 ctx.strokeRect(canvas.width - barWidth - 20, 20, barWidth, barHeight);
                 ctx.textAlign = 'right';
-                ctx.fillText(this.mechs[1].name, canvas.width - 25, 15);
+                ctx.fillText(this.mechs[1].name + ' ' + this.mechs[1].score, canvas.width - 25, 15);
                 ctx.textAlign = 'left';
+            }
+            
+            drawSadFace(mech, opponent) {
+                const scoreDiff = mech.score - opponent.score;
+                if (scoreDiff <= -20) {
+                    const centerX = mech.x + mech.width / 2;
+                    const centerY = mech.y - 30;
+                    const radius = 15;
+                    
+                    ctx.fillStyle = '#f4d03f';
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    ctx.fillStyle = '#000000';
+                    ctx.beginPath();
+                    ctx.arc(centerX - 5, centerY - 3, 3, 0, Math.PI * 2);
+                    ctx.arc(centerX + 5, centerY - 3, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY + 5, 8, 0.2 * Math.PI, 0.8 * Math.PI);
+                    ctx.stroke();
+                    
+                    ctx.fillStyle = '#3498db';
+                    ctx.font = '8px "Press Start 2P"';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('防御加成!', centerX, centerY + 35);
+                    ctx.textAlign = 'left';
+                }
             }
             
             showGameOver() {
