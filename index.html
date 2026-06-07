@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>像素机甲对战</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #1a1a2e;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Press Start 2P', cursive;
+        }
+        
+        .game-container {
+            text-align: center;
+        }
+        
+        h1 {
+            color: #f4d03f;
+            margin-bottom: 20px;
+            text-shadow: 4px 4px 0px #8e44ad;
+            font-size: 24px;
+        }
+        
+        canvas {
+            border: 4px solid #f4d03f;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+            box-shadow: 0 0 20px rgba(244, 208, 63, 0.3);
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+            padding: 0 20px;
+            max-width: 600px;
+        }
+        
+        .player-controls {
+            color: #ecf0f1;
+            text-align: left;
+            font-size: 8px;
+            line-height: 2;
+        }
+        
+        .player-controls h3 {
+            color: #f4d03f;
+            margin-bottom: 10px;
+        }
+        
+        .player1 {
+            color: #e74c3c;
+        }
+        
+        .player2 {
+            color: #3498db;
+        }
+        
+        .key {
+            display: inline-block;
+            background: #34495e;
+            padding: 4px 8px;
+            border-radius: 4px;
+            border: 2px solid #7f8c8d;
+            margin: 2px;
+        }
+        
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            padding: 40px;
+            border: 4px solid #f4d03f;
+            display: none;
+            text-align: center;
+        }
+        
+        #gameOver h2 {
+            color: #f4d03f;
+            margin-bottom: 20px;
+            font-size: 16px;
+        }
+        
+        #gameOver button {
+            background: #2ecc71;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-family: 'Press Start 2P', cursive;
+            font-size: 10px;
+            cursor: pointer;
+            border: 4px solid #27ae60;
+        }
+        
+        #gameOver button:hover {
+            background: #27ae60;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>⚡ 像素机甲对战 ⚡</h1>
+        <canvas id="gameCanvas" width="600" height="400"></canvas>
+        
+        <div class="controls">
+            <div class="player-controls player1">
+                <h3>红方机甲</h3>
+                <span class="key">A</span> 左移<br>
+                <span class="key">D</span> 右移<br>
+                <span class="key">W</span> 跳跃<br>
+                <span class="key">S</span> 防御<br>
+                <span class="key">SPACE</span> 攻击
+            </div>
+            <div class="player-controls player2">
+                <h3>蓝方机甲</h3>
+                <span class="key">←</span> 左移<br>
+                <span class="key">→</span> 右移<br>
+                <span class="key">↑</span> 跳跃<br>
+                <span class="key">↓</span> 防御<br>
+                <span class="key">ENTER</span> 攻击
+            </div>
+        </div>
+        
+        <div id="gameOver">
+            <h2 id="winnerText">游戏结束！</h2>
+            <button onclick="game.reset()">重新开始</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        class Mech {
+            constructor(x, y, color, name, controls, side) {
+                this.x = x;
+                this.y = y;
+                this.baseY = y;
+                this.color = color;
+                this.name = name;
+                this.controls = controls;
+                this.side = side;
+                this.health = 100;
+                this.maxHealth = 100;
+                this.width = 40;
+                this.height = 60;
+                this.velocity = { x: 0, y: 0 };
+                this.speed = 5;
+                this.jumpForce = -12;
+                this.gravity = 0.5;
+                this.grounded = true;
+                this.isAttacking = false;
+                this.attackFrame = 0;
+                this.isDefending = false;
+                this.attackCooldown = 0;
+                this.animationFrame = 0;
+                this.damageFlash = 0;
+                this.facingRight = side === 'left';
+            }
+            
+            update(keys, opponent) {
+                this.animationFrame++;
+                
+                if (this.attackCooldown > 0) {
+                    this.attackCooldown--;
+                }
+                
+                if (this.damageFlash > 0) {
+                    this.damageFlash--;
+                }
+                
+                if (this.isAttacking) {
+                    this.attackFrame++;
+                    if (this.attackFrame > 20) {
+                        this.isAttacking = false;
+                        this.attackFrame = 0;
+                    }
+                }
+                
+                if (!this.isAttacking) {
+                    if (keys[this.controls.left]) {
+                        this.velocity.x = -this.speed;
+                        this.facingRight = false;
+                    } else if (keys[this.controls.right]) {
+                        this.velocity.x = this.speed;
+                        this.facingRight = true;
+                    } else {
+                        this.velocity.x *= 0.8;
+                    }
+                    
+                    if (keys[this.controls.jump] && this.grounded) {
+                        this.velocity.y = this.jumpForce;
+                        this.grounded = false;
+                    }
+                    
+                    if (keys[this.controls.defend]) {
+                        this.isDefending = true;
+                    } else {
+                        this.isDefending = false;
+                    }
+                    
+                    if (keys[this.controls.attack] && this.attackCooldown === 0) {
+                        this.attack(opponent);
+                    }
+                }
+                
+                this.velocity.y += this.gravity;
+                
+                this.x += this.velocity.x;
+                this.y += this.velocity.y;
+                
+                if (this.x < 0) this.x = 0;
+                if (this.x + this.width > canvas.width) this.x = canvas.width - this.width;
+                
+                if (this.y >= this.baseY) {
+                    this.y = this.baseY;
+                    this.velocity.y = 0;
+                    this.grounded = true;
+                }
+            }
+            
+            attack(opponent) {
+                this.isAttacking = true;
+                this.attackFrame = 0;
+                this.attackCooldown = 30;
+                
+                const attackRange = 60;
+                const attackX = this.facingRight ? this.x + this.width : this.x - attackRange;
+                
+                if (attackX < opponent.x + opponent.width &&
+                    attackX + attackRange > opponent.x &&
+                    this.y < opponent.y + opponent.height &&
+                    this.y + this.height > opponent.y) {
+                    opponent.takeDamage(15);
+                }
+            }
+            
+            takeDamage(amount) {
+                if (this.isDefending) {
+                    amount = Math.floor(amount * 0.3);
+                }
+                this.health -= amount;
+                this.damageFlash = 10;
+                if (this.health < 0) this.health = 0;
+            }
+            
+            draw(ctx) {
+                ctx.save();
+                
+                if (this.damageFlash > 0 && this.damageFlash % 2 === 0) {
+                    ctx.fillStyle = '#ffffff';
+                } else {
+                    ctx.fillStyle = this.color;
+                }
+                
+                if (!this.facingRight) {
+                    ctx.translate(this.x + this.width, 0);
+                    ctx.scale(-1, 1);
+                    ctx.translate(-this.x, 0);
+                }
+                
+                const bobY = Math.sin(this.animationFrame * 0.1) * 2;
+                
+                ctx.fillRect(this.x + 8, this.y + 20 + bobY, 24, 30);
+                ctx.fillRect(this.x + 10, this.y + bobY, 20, 20);
+                
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(this.x + 14, this.y + 6 + bobY, 6, 6);
+                ctx.fillRect(this.x + 22, this.y + 6 + bobY, 6, 6);
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(this.x + 16, this.y + 8 + bobY, 2, 2);
+                ctx.fillRect(this.x + 24, this.y + 8 + bobY, 2, 2);
+                
+                if (this.isDefending) {
+                    ctx.fillStyle = '#f4d03f';
+                    ctx.fillRect(this.x - 5, this.y + 10 + bobY, 8, 40);
+                    ctx.fillStyle = this.color;
+                }
+                
+                if (this.isAttacking) {
+                    const attackOffset = Math.min(this.attackFrame * 3, 40);
+                    ctx.fillRect(this.x + 28, this.y + 25 + bobY, 12 + attackOffset, 10);
+                    ctx.fillStyle = '#f39c12';
+                    ctx.fillRect(this.x + 36 + attackOffset, this.y + 20 + bobY, 20, 20);
+                } else {
+                    ctx.fillRect(this.x, this.y + 25 + bobY, 10, 20);
+                    ctx.fillRect(this.x + 30, this.y + 25 + bobY, 10, 20);
+                }
+                
+                ctx.fillStyle = this.damageFlash > 0 && this.damageFlash % 2 === 0 ? '#ffffff' : this.color;
+                const legOffset = Math.sin(this.animationFrame * 0.2) * 3;
+                ctx.fillRect(this.x + 10, this.y + 50 + bobY, 8, 15 + (this.grounded ? legOffset : 0));
+                ctx.fillRect(this.x + 22, this.y + 50 + bobY, 8, 15 + (this.grounded ? -legOffset : 0));
+                
+                ctx.restore();
+            }
+        }
+        
+        class Game {
+            constructor() {
+                this.canvas = canvas;
+                this.ctx = ctx;
+                this.keys = {};
+                this.mechs = [];
+                this.gameOver = false;
+                this.winner = null;
+                this.init();
+            }
+            
+            init() {
+                this.gameOver = false;
+                this.winner = null;
+                document.getElementById('gameOver').style.display = 'none';
+                
+                const groundY = canvas.height - 80;
+                
+                this.mechs = [
+                    new Mech(100, groundY, '#e74c3c', '红方机甲', {
+                        left: 'KeyA',
+                        right: 'KeyD',
+                        jump: 'KeyW',
+                        defend: 'KeyS',
+                        attack: 'Space'
+                    }, 'left'),
+                    new Mech(460, groundY, '#3498db', '蓝方机甲', {
+                        left: 'ArrowLeft',
+                        right: 'ArrowRight',
+                        jump: 'ArrowUp',
+                        defend: 'ArrowDown',
+                        attack: 'Enter'
+                    }, 'right')
+                ];
+            }
+            
+            update() {
+                if (this.gameOver) return;
+                
+                this.mechs[0].update(this.keys, this.mechs[1]);
+                this.mechs[1].update(this.keys, this.mechs[0]);
+                
+                if (this.mechs[0].health <= 0) {
+                    this.gameOver = true;
+                    this.winner = this.mechs[1];
+                    this.showGameOver();
+                } else if (this.mechs[1].health <= 0) {
+                    this.gameOver = true;
+                    this.winner = this.mechs[0];
+                    this.showGameOver();
+                }
+            }
+            
+            render() {
+                this.ctx.fillStyle = '#16213e';
+                this.ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                this.drawStars();
+                this.drawGround();
+                
+                this.mechs.forEach(mech => mech.draw(this.ctx));
+                
+                this.drawHealthBars();
+            }
+            
+            drawStars() {
+                ctx.fillStyle = '#ffffff';
+                for (let i = 0; i < 50; i++) {
+                    const x = (i * 37) % canvas.width;
+                    const y = (i * 19) % 200;
+                    const size = (i % 3) + 1;
+                    ctx.fillRect(x, y, size, size);
+                }
+            }
+            
+            drawGround() {
+                const groundY = canvas.height - 80;
+                ctx.fillStyle = '#2ecc71';
+                ctx.fillRect(0, groundY, canvas.width, 80);
+                ctx.fillStyle = '#27ae60';
+                for (let i = 0; i < canvas.width; i += 20) {
+                    ctx.fillRect(i, groundY, 10, 10);
+                }
+                ctx.fillStyle = '#795548';
+                ctx.fillRect(0, groundY + 20, canvas.width, 60);
+            }
+            
+            drawHealthBars() {
+                const barWidth = 200;
+                const barHeight = 20;
+                
+                ctx.fillStyle = '#c0392b';
+                ctx.fillRect(20, 20, barWidth, barHeight);
+                const p1HealthWidth = (this.mechs[0].health / this.mechs[0].maxHealth) * barWidth;
+                ctx.fillStyle = '#e74c3c';
+                ctx.fillRect(20, 20, p1HealthWidth, barHeight);
+                ctx.strokeStyle = '#f4d03f';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(20, 20, barWidth, barHeight);
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '10px "Press Start 2P"';
+                ctx.fillText(this.mechs[0].name, 25, 15);
+                
+                ctx.fillStyle = '#2980b9';
+                ctx.fillRect(canvas.width - barWidth - 20, 20, barWidth, barHeight);
+                const p2HealthWidth = (this.mechs[1].health / this.mechs[1].maxHealth) * barWidth;
+                ctx.fillStyle = '#3498db';
+                ctx.fillRect(canvas.width - barWidth - 20, 20, p2HealthWidth, barHeight);
+                ctx.strokeStyle = '#f4d03f';
+                ctx.strokeRect(canvas.width - barWidth - 20, 20, barWidth, barHeight);
+                ctx.textAlign = 'right';
+                ctx.fillText(this.mechs[1].name, canvas.width - 25, 15);
+                ctx.textAlign = 'left';
+            }
+            
+            showGameOver() {
+                document.getElementById('winnerText').textContent = 
+                    `${this.winner.name} 获胜！`;
+                document.getElementById('gameOver').style.display = 'block';
+            }
+            
+            reset() {
+                this.init();
+            }
+        }
+        
+        let game = new Game();
+        
+        document.addEventListener('keydown', (e) => {
+            game.keys[e.code] = true;
+            if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter'].includes(e.code)) {
+                e.preventDefault();
+            }
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            game.keys[e.code] = false;
+        });
+        
+        function gameLoop() {
+            game.update();
+            game.render();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        gameLoop();
+    </script>
+</body>
+</html>
