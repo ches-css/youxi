@@ -251,7 +251,7 @@
             
             takeDamage(amount) {
                 if (this.isDefending) {
-                    amount = Math.floor(amount * 0.3);
+                    amount = Math.floor(amount * 0.5);
                 }
                 this.health -= amount;
                 this.damageFlash = 10;
@@ -275,36 +275,53 @@
                 
                 const bobY = Math.sin(this.animationFrame * 0.1) * 2;
                 
-                ctx.fillRect(this.x + 8, this.y + 20 + bobY, 24, 30);
-                ctx.fillRect(this.x + 10, this.y + bobY, 20, 20);
-                
-                ctx.fillStyle = '#ffffff';
-                ctx.fillRect(this.x + 14, this.y + 6 + bobY, 6, 6);
-                ctx.fillRect(this.x + 22, this.y + 6 + bobY, 6, 6);
-                ctx.fillStyle = '#000000';
-                ctx.fillRect(this.x + 16, this.y + 8 + bobY, 2, 2);
-                ctx.fillRect(this.x + 24, this.y + 8 + bobY, 2, 2);
-                
                 if (this.isDefending) {
+                    const crouchOffset = 10;
+                    
+                    ctx.fillRect(this.x + 8, this.y + 25 + bobY, 24, 25);
+                    ctx.fillRect(this.x + 10, this.y + 5 + bobY, 20, 20);
+                    
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(this.x + 14, this.y + 10 + bobY, 6, 6);
+                    ctx.fillRect(this.x + 22, this.y + 10 + bobY, 6, 6);
+                    ctx.fillStyle = '#000000';
+                    ctx.fillRect(this.x + 16, this.y + 12 + bobY, 2, 2);
+                    ctx.fillRect(this.x + 24, this.y + 12 + bobY, 2, 2);
+                    ctx.fillStyle = this.damageFlash > 0 && this.damageFlash % 2 === 0 ? '#ffffff' : this.color;
+                    
                     ctx.fillStyle = '#f4d03f';
-                    ctx.fillRect(this.x - 5, this.y + 10 + bobY, 8, 40);
-                    ctx.fillStyle = this.color;
-                }
-                
-                if (this.isAttacking) {
-                    const attackOffset = Math.min(this.attackFrame * 3, 40);
-                    ctx.fillRect(this.x + 28, this.y + 25 + bobY, 12 + attackOffset, 10);
-                    ctx.fillStyle = '#f39c12';
-                    ctx.fillRect(this.x + 36 + attackOffset, this.y + 20 + bobY, 20, 20);
+                    ctx.fillRect(this.x - 5, this.y + 15 + bobY, 12, 40);
+                    ctx.fillStyle = this.damageFlash > 0 && this.damageFlash % 2 === 0 ? '#ffffff' : this.color;
+                    
+                    ctx.fillRect(this.x + 8, this.y + 45 + bobY, 10, 15);
+                    ctx.fillRect(this.x + 22, this.y + 45 + bobY, 10, 15);
                 } else {
-                    ctx.fillRect(this.x, this.y + 25 + bobY, 10, 20);
-                    ctx.fillRect(this.x + 30, this.y + 25 + bobY, 10, 20);
+                    ctx.fillRect(this.x + 8, this.y + 20 + bobY, 24, 30);
+                    ctx.fillRect(this.x + 10, this.y + bobY, 20, 20);
+                    
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(this.x + 14, this.y + 6 + bobY, 6, 6);
+                    ctx.fillRect(this.x + 22, this.y + 6 + bobY, 6, 6);
+                    ctx.fillStyle = '#000000';
+                    ctx.fillRect(this.x + 16, this.y + 8 + bobY, 2, 2);
+                    ctx.fillRect(this.x + 24, this.y + 8 + bobY, 2, 2);
+                    ctx.fillStyle = this.damageFlash > 0 && this.damageFlash % 2 === 0 ? '#ffffff' : this.color;
+                    
+                    if (this.isAttacking) {
+                        const attackOffset = Math.min(this.attackFrame * 3, 40);
+                        ctx.fillRect(this.x + 28, this.y + 25 + bobY, 12 + attackOffset, 10);
+                        ctx.fillStyle = '#f39c12';
+                        ctx.fillRect(this.x + 36 + attackOffset, this.y + 20 + bobY, 20, 20);
+                    } else {
+                        ctx.fillRect(this.x, this.y + 25 + bobY, 10, 20);
+                        ctx.fillRect(this.x + 30, this.y + 25 + bobY, 10, 20);
+                    }
+                    
+                    ctx.fillStyle = this.damageFlash > 0 && this.damageFlash % 2 === 0 ? '#ffffff' : this.color;
+                    const legOffset = Math.sin(this.animationFrame * 0.2) * 3;
+                    ctx.fillRect(this.x + 10, this.y + 50 + bobY, 8, 15 + (this.grounded ? legOffset : 0));
+                    ctx.fillRect(this.x + 22, this.y + 50 + bobY, 8, 15 + (this.grounded ? -legOffset : 0));
                 }
-                
-                ctx.fillStyle = this.damageFlash > 0 && this.damageFlash % 2 === 0 ? '#ffffff' : this.color;
-                const legOffset = Math.sin(this.animationFrame * 0.2) * 3;
-                ctx.fillRect(this.x + 10, this.y + 50 + bobY, 8, 15 + (this.grounded ? legOffset : 0));
-                ctx.fillRect(this.x + 22, this.y + 50 + bobY, 8, 15 + (this.grounded ? -legOffset : 0));
                 
                 ctx.restore();
             }
